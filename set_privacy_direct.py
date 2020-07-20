@@ -3,7 +3,8 @@ from dataclasses import dataclass
 import sys
 from typing import Callable, Dict, Sequence, Iterable, List
 
-from z3 import And, BoolRef, Const, ExprRef, ForAll, Implies, Not, Or, sat, Solver, SortRef, unsat
+from IPython.display import display
+from z3 import And, BoolRef, Const, ExprRef, ForAll, Implies, Not, Or, sat, simplify, Solver, SortRef, unsat
 
 Schema = Dict[str, SortRef]  # Maps column name to sort.
 
@@ -62,7 +63,8 @@ def check_privacy(schema: Schema,
                     And(theta(**t1), t1[U] == t[U])
                 )
 
-            clauses.append(for_all_tuples("t1", schema, inner_psi))
+            psi_i = for_all_tuples("t1", schema, inner_psi)
+            clauses.append(And(theta_i(**t), psi_i))
 
         return Implies(theta(**t), Or(clauses))
 
@@ -72,12 +74,15 @@ def check_privacy(schema: Schema,
     sol.add(Not(expr))  # Check the satisfiability of its negation.
 
     if verbose:
-        print(sol.assertions(), file=sys.stderr)
+        for assertion in sol.assertions():
+            display(assertion)
 
     res = sol.check()
     if res == unsat:
         return True
     elif res == sat:
+        if verbose:
+            display(sol.model())
         return False
     else:
         assert False, "Z3 isn't sure"
